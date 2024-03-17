@@ -1,14 +1,32 @@
-"""Python FastAPI Auth0 integration example
-"""
+import os
+import uuid
 from openai import OpenAI
 from fastapi import HTTPException
 from pydantic import BaseModel
 from fastapi import FastAPI, Security
+from prompts import parse_vision_items, prompt_vision
 from utils import VerifyToken
+from dotenv import load_dotenv
+from fastapi import UploadFile, File
+from fastapi.responses import JSONResponse
+from pymongo import MongoClient
+from fastapi.middleware.cors import CORSMiddleware
+
+load_dotenv()
+
+MONGO_URI = os.environ.get("MONGO_URI")
 
 # Creates app instance
 app = FastAPI()
 auth = VerifyToken()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 
 @app.get("/api/public")
@@ -49,6 +67,73 @@ async def get_gpt_response(prompt: Prompt):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.post("/api/upload-file")
+async def upload_file(file: UploadFile = File(...)):
+    user_id = str(uuid.uuid4())
+    try:
+        file_contents = await file.read()
+        base_upload_folder = "uploads"
+        user_upload_folder = f"{base_upload_folder}/{user_id}"
+        if not os.path.exists(base_upload_folder):
+            os.makedirs(base_upload_folder)
+        if not os.path.exists(user_upload_folder):
+            os.makedirs(user_upload_folder)
+        file_name = str(uuid.uuid4())
+        file_path = f"{user_upload_folder}/{file_name}"
+        with open(file_path, "wb") as f:
+            f.write(file_contents)
+        return JSONResponse(status_code=200, content={"message": "File uploaded successfully", "data": file_path})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"message": str(e)})
+
+class FilePrompt(BaseModel):
+    data: str
+
+@app.post("/api/analyze")
+async def analyze(file_prompt: FilePrompt):
+    vis_prompt = """
+You are a trash recycling and reuse vision system for HackPSU. Your goal is to take any given image of trash and identify
+the various items that are present in it. These items will then later be segregated by another system and prompted to reuse.
+
+Please follow the following rules when identifying items, as mentioned in between <rules></rules> tag.
+<rules>
+<rule>
+The user will be familiar with the general purpose names of the items
+</rule>
+<rule>
+Do not identify items that cannot be reused or repurposed by the user
+</rule>
+</rules>
+
+Please only respond in the example response format provided in between <example></example> tags.
+<example>
+<content>
+<items>
+<item name="paper"/>
+<item name="fruit" />
+</items>
+</content>
+</example>
+
+Now, start your response:
+"""
+    response = prompt_vision(file_prompt.data, vis_prompt)
+
+    return parse_vision_items(response.message.content)
+
+
+@app.get("/api/db-connect")
+def connect_to_mongodb():
+    client = MongoClient(MONGO_URI)
+    # Send a ping to confirm a successful connection
+    try:
+        client.admin.command('ping')
+        print("Pinged your deployment. You successfully connected to MongoDB!")
+
+        return {"ok": "success"}
+    except Exception as e:
+        print(e)
 
 
 @app.get("/api/private-scoped")
