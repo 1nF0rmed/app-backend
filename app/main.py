@@ -4,7 +4,7 @@ from openai import OpenAI
 from fastapi import HTTPException
 from pydantic import BaseModel
 from fastapi import FastAPI, Security
-from prompts import parse_vision_items, prompt_vision
+from prompts import generate_products_from_image
 from utils import VerifyToken
 from dotenv import load_dotenv
 from fastapi import UploadFile, File
@@ -92,35 +92,9 @@ class FilePrompt(BaseModel):
 
 @app.post("/api/analyze")
 async def analyze(file_prompt: FilePrompt):
-    vis_prompt = """
-You are a trash recycling and reuse vision system for HackPSU. Your goal is to take any given image of trash and identify
-the various items that are present in it. These items will then later be segregated by another system and prompted to reuse.
+    products = generate_products_from_image(file_prompt.data)
 
-Please follow the following rules when identifying items, as mentioned in between <rules></rules> tag.
-<rules>
-<rule>
-The user will be familiar with the general purpose names of the items
-</rule>
-<rule>
-Do not identify items that cannot be reused or repurposed by the user
-</rule>
-</rules>
-
-Please only respond in the example response format provided in between <example></example> tags.
-<example>
-<content>
-<items>
-<item name="paper"/>
-<item name="fruit" />
-</items>
-</content>
-</example>
-
-Now, start your response:
-"""
-    response = prompt_vision(file_prompt.data, vis_prompt)
-
-    return parse_vision_items(response.message.content)
+    return products
 
 
 @app.get("/api/db-connect")
