@@ -92,9 +92,9 @@ class FilePrompt(BaseModel):
 
 @app.post("/api/analyze")
 async def analyze(file_prompt: FilePrompt):
-    products = generate_products_from_image(file_prompt.data)
+    products, items = generate_products_from_image(file_prompt.data)
 
-    return JSONResponse(content={"products": [product.model_dump() for product in products]})
+    return JSONResponse(content={"products": [product.model_dump() for product in products], "items": items})
 
 
 @app.get("/api/db-connect")

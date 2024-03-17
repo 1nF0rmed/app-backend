@@ -1,5 +1,5 @@
 import base64
-from typing import List
+from typing import List, Tuple
 from openai import OpenAI
 from xml.etree import ElementTree as ET
 
@@ -57,15 +57,15 @@ def parse_products(xml_string: str) -> List[Product]:
 def get_items_in_image(image_path: str) -> dict:
     vis_prompt = """
 You are a trash recycling and reuse vision system for HackPSU. Your goal is to take any given image of trash and identify
-the various items that are present in it. These items will then later be segregated by another system and prompted to reuse.
+the various waste items that are present in it. These waste items will then later be segregated by another system and prompted to reuse.
 
 Please follow the following rules when identifying items, as mentioned in between <rules></rules> tag.
 <rules>
 <rule>
-The user will be familiar with the general purpose names of the items
+Identify vegetables by their names, ex: if you see multiple vegetables - identify each as a separate waste item.
 </rule>
 <rule>
-Do not identify items that cannot be reused or repurposed by the user
+Identify all organic and inorganic materials in the image AND mention each as a separate waste item.
 </rule>
 </rules>
 
@@ -138,9 +138,9 @@ Your response:
     return parse_products(response.choices[0].message.content)
 
 
-def generate_products_from_image(file_path: str):
+def generate_products_from_image(file_path: str) -> Tuple[List[Product], List[str]]:
 
     items_string = get_items_in_image(file_path)["items"]
     products = determine_products_from_items(items_string)
 
-    return products
+    return products, items_string
