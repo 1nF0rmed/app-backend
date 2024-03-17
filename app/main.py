@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel
 from fastapi import FastAPI, Security
 from prompts import generate_products_from_image
-from utils import VerifyToken
+from utils import VerifyToken, determine_nearby
 from dotenv import load_dotenv
 from fastapi import UploadFile, File
 from fastapi.responses import JSONResponse
@@ -93,8 +93,9 @@ class FilePrompt(BaseModel):
 @app.post("/api/analyze")
 async def analyze(file_prompt: FilePrompt):
     products, items = generate_products_from_image(file_prompt.data)
+    recycle_locations = determine_nearby()
 
-    return JSONResponse(content={"products": [product.model_dump() for product in products], "items": items})
+    return JSONResponse(content={"products": [product.model_dump() for product in products], "items": items, "locations": recycle_locations})
 
 
 @app.get("/api/db-connect")

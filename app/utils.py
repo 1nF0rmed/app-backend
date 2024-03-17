@@ -76,3 +76,25 @@ class VerifyToken:
         for value in expected_value:
             if value not in payload_claim:
                 raise UnauthorizedException(detail=f'Missing "{claim_name}" scope')
+
+def determine_nearby():
+    # Call Google Places API
+
+    return [
+        {
+            "name": "Refuse and Recycling Centre Region",
+            "map": "https://maps.app.goo.gl/ZbkcZDARvNEEdCNg9"
+        },
+        {
+            "name": "Centre County Recycling and Refuse Authority",
+            "map": "https://maps.app.goo.gl/EoZHi4tu6see8vUm6"
+        },
+        {
+            "name": "Recycling Center",
+            "map": "https://maps.app.goo.gl/K24zkQbdePmtUF3dA"
+        },
+        {
+            "name": "eLoop",
+            "map": "https://maps.app.goo.gl/YNkX5yLkUNfkbkxm9"
+        },
+    ]
