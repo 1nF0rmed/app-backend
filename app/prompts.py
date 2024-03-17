@@ -36,7 +36,7 @@ def prompt_vision(image_path, user_prompt):
 
 def parse_vision_items(xml_string):
     root = ET.fromstring(xml_string)
-    items = [item.get('name') for item in root.findall('items/item')]
+    items = [item.get('name') for item in root.findall('wasteitems/wasteitem')]
     return {"items": items}
 
 class Product(BaseModel):
@@ -47,9 +47,9 @@ class Product(BaseModel):
 def parse_products(xml_string: str) -> List[Product]:
     root = ET.fromstring(xml_string)
     products = []
-    for product in root.findall('product'):
+    for product in root.findall('products/product'):
         name = product.get('name')
-        items = [item.text for item in product.findall('items/item')]
+        items = [item.get('name') for item in product.findall('wasteitems/wasteitem')]
         steps = [step.get('desc') for step in product.findall('steps/step')]
         products.append(Product(name=name, items=items, steps=steps))
     return products
@@ -72,10 +72,10 @@ Do not identify items that cannot be reused or repurposed by the user
 Please only respond in the example response format provided in between <example></example> tags.
 <example>
 <content>
-<items>
-<item name="paper"/>
-<item name="fruit" />
-</items>
+<wasteitems>
+<wasteitem name="paper"/>
+<wasteitem name="fruit" />
+</wasteitems>
 </content>
 </example>
 
@@ -85,52 +85,25 @@ Now, start your response:
 
     return parse_vision_items(response.message.content)
 
-def determine_products_from_items(items: list[str]) -> dict:
+def determine_products_from_items(items: list[str]) -> List[Product]:
 
-    item_strings = [f"<item name='{item}'/>" for item in items]
-    items_string = "<items>\n" + "\n".join(item_strings) + "\n</items>"
+    item_strings = [f"<wasteitem name='{item}'/>" for item in items]
+    items_string = "<wasteitems>\n" + "\n".join(item_strings) + "\n</wasteitems>"
 
     products_prompt = f"""
 You are a recycling and reuse supportive system for HackPSU. Your goal is to take a list of items that will be provided to you
 and then determine the various ways these items could be repurposed or recycled by the user. Along with each product, you will
 also provide steps to produce it assuming that the person has functional hands, basic tools and knowledge of a high schooler.
 
-Some examples of products that have been made along with different items are provided between <productexamples></productexamples> tag.
-<productexamples>
-<product name="Fertilizer">
-<items>
-<item>Coffee Grounds</item>
-</items>
-<description>
-Coffee grounds are rich in nitrogen, potassium, and other nutrients that are beneficial for plants. Used coffee grounds can be added to compost bins or directly to soil as a natural fertilizer for gardens and houseplants.
-</description>
-</product>
-<product name="Soaps">
-<items>
-<item>Coffee Grounds</item>
-</items>
-<description>
-Coffee grounds can be incorporated into homemade soap recipes to create a natural exfoliant. Coffee grounds soap can help to cleanse and invigorate the skin, while also providing gentle exfoliation.
-</description>
-</product>
-<product name="Animal Feed Additive">
-<items>
-<item>Cooking oil</item>
-</items>
-<description>
-Used cooking oil can be processed and used as an additive in animal feed. It provides a source of energy and fat for livestock, poultry, and aquaculture, reducing the need for virgin vegetable oils in feed formulations.
-</description>
-</product>
-</productexamples>
 
 Using the above examples, provide a response of products, items that can be used to make product and steps for the same as described in the <response></response> tags.
 <response>
 <products>
 <product name="Product Name here">
-<items>
-<item name="item name here">
+<wasteitems>
+<wasteitem name="item name here">
 <-- Next item here -->
-</items>
+</wasteitems>
 <steps>
 <step desc="Step of the process to make product using items" />
 <-- Next step here -->
@@ -140,7 +113,11 @@ Using the above examples, provide a response of products, items that can be used
 </products>
 </response>
 
-Now, here are the available items:
+Please following the given rules:
+1. Only use the given waste items and do not assume any other items.
+2. Tools are not items, consider that the user has a basic toolkit.
+
+Now, here are the available waste items:
 {items_string}
 
 Your response:
@@ -155,6 +132,7 @@ Your response:
         max_tokens=1000
     )
 
+    print(f"Items: {items_string}")
     print(f"Products: {response.choices[0].message.content}")
 
     return parse_products(response.choices[0].message.content)
@@ -162,7 +140,7 @@ Your response:
 
 def generate_products_from_image(file_path: str):
 
-    items_string = get_items_in_image(file_path)
+    items_string = get_items_in_image(file_path)["items"]
     products = determine_products_from_items(items_string)
 
     return products
